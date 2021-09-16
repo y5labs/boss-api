@@ -7,10 +7,13 @@ const boss_prefix = '__pgboss__'
 
 inject('pod', async ({ app, hub, db, log, startup, boss }) => {
   const release = startup.retain()
-  await db.query(`create table if not exists ${schema}.api_key (
-    api_key varchar(255) primary key,
-    api_secret varchar(255) not null
-  );`)
+  await db.query(`
+    create extension if not exists pgcrypto;
+    create table if not exists ${schema}.api_key (
+      api_key varchar(255) primary key,
+      api_secret varchar(255) not null
+    );
+  `)
   release()
 
   const upsert = async ({ api_key, api_secret }) =>
