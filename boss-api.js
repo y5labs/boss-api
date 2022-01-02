@@ -42,7 +42,10 @@ inject('pod', async ({ app, hub, db, log, startup, boss }) => {
     const api_key = shortid.generate()
     const api_secret = shortid.generate()
     await upsert({ api_key, api_secret })
-    log(`Added api_key: ${api_key}, api_secret: ${api_secret}`)
+    if (process.env.BOSS_CONTROL_HOST)
+      await log(`${process.env.BOSS_CONTROL_HOST}/connect?server_address=${encodeURIComponent(process.env.BOSS_API_HOST)}&api_key=${encodeURIComponent(api_key)}&api_secret=${encodeURIComponent(api_secret)}`)
+    else
+      await log(`Added api_key: ${api_key}, api_secret: ${api_secret}`)
   })
 
   inject('command.api_key_delete', async api_key => {
