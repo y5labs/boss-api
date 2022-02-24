@@ -66,8 +66,12 @@ inject('pod', async ({ app, hub, db, log, startup, boss }) => {
   })
 
   const load_jobs = async ({ queue, statuses, currentpage, itemsperpage = 25, search_term = null }) => {
+    const archived_statuses = statuses.filter(s =>
+      ['archived_completed', 'archived_cancelled', 'archived_expired', 'archived_failed'].includes(s)
+    )
     statuses = statuses.filter(s => boss_states[s])
-    if (statuses.length == 0)
+
+    if (statuses.length == 0 && archived_statuses.length == 0)
       return {
         queue,
         statuses,
@@ -113,15 +117,54 @@ inject('pod', async ({ app, hub, db, log, startup, boss }) => {
         limit $4;`,
             [queue, statuses, (currentpage - 1) * itemsperpage, itemsperpage]
           )
-    const totalitems = parseInt(res.rows?.[0]?.full_count ?? 0)
+    const res_archived =
+      search_term && search_term.length > 2
+        ? await db.query(
+            `
+          select id, data, state,
+          greatest(startedon, createdon, completedon, startafter) as activity_at,
+          count(*) OVER() as full_count
+          from ${schema}.archive
+          where name = $1 and state = ANY($2)
+          and data::text like $3
+          order by greatest(startedon, createdon, completedon, startafter) desc
+          offset $4
+          limit $5;`,
+            [
+              queue,
+              archived_statuses.map(s => s.replace('archived_', '')),
+              `%${search_term}%`,
+              (currentpage - 1) * itemsperpage,
+              itemsperpage
+            ]
+          )
+        : await db.query(
+            `
+          select id, data, state,
+          greatest(startedon, createdon, completedon, startafter) as activity_at,
+          count(*) OVER() as full_count
+          from ${schema}.archive
+          where name = $1 and state = ANY($2)
+          order by greatest(startedon, createdon, completedon, startafter) desc
+          offset $3
+          limit $4;`,
+            [
+              queue,
+              archived_statuses.map(s => s.replace('archived_', '')),
+              (currentpage - 1) * itemsperpage,
+              itemsperpage
+            ]
+          )
+    const totalitems = parseInt(res.rows?.[0]?.full_count ?? 0) + parseInt(res_archived.rows?.[0]?.full_count ?? 0)
     for (const row of res.rows) delete row.full_count
+    for (const row of res_archived.rows) delete row.full_count
     return {
       queue,
       statuses,
       currentpage,
       itemsperpage,
       totalitems,
-      jobs: res.rows
+      jobs: [...res.rows, ...res_archived.rows]
     }
   }
 
