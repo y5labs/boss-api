@@ -139,7 +139,7 @@ inject('pod', async ({ app, hub, db, log, startup, boss }) => {
         }
       } else if (event == 'login') {
         const { apiKey, apiSecret } = payload
-        // if (!(await verify({ api_key: apiKey, api_secret: apiSecret }))) return
+        if (!(await verify({ api_key: apiKey, api_secret: apiSecret }))) return
         socket.sendMessage('queue state update', last)
         sockets.add(socket)
       }
