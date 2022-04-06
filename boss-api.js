@@ -1,20 +1,20 @@
-import inject from 'seacreature/lib/inject'
-import { states as boss_states } from 'pg-boss'
-import shortid from 'shortid'
+import inject from "seacreature/lib/inject";
+import { states as boss_states } from "pg-boss";
+import shortid from "shortid";
 
-const schema = process.env.BOSS_PG_SCHEMA
-const boss_prefix = '__pgboss__'
+const schema = process.env.BOSS_PG_SCHEMA;
+const boss_prefix = "__pgboss__";
 
-inject('pod', async ({ app, hub, db, log, startup, boss }) => {
-  const release = startup.retain()
+inject("pod", async ({ app, hub, db, log, startup, boss }) => {
+  const release = startup.retain();
   await db.query(`
     create extension if not exists pgcrypto;
     create table if not exists ${schema}.api_key (
       api_key varchar(255) primary key,
       api_secret varchar(255) not null
     );
-  `)
-  release()
+  `);
+  release();
 
   const upsert = async ({ api_key, api_secret }) =>
     await db.query(
@@ -25,7 +25,7 @@ inject('pod', async ({ app, hub, db, log, startup, boss }) => {
       set api_secret = excluded.api_secret;
     `,
       [api_key, api_secret]
-    )
+    );
 
   const verify = async ({ api_key, api_secret }) => {
     const { rows } = await db.query(
@@ -34,9 +34,9 @@ inject('pod', async ({ app, hub, db, log, startup, boss }) => {
       where api_key = $1 and api_secret = $2;
     `,
       [api_key, api_secret]
-    )
-    return rows.length == 1
-  }
+    );
+    return rows.length == 1;
+  };
 
   const remove = async ({ api_key }) =>
     await db.query(
@@ -45,31 +45,46 @@ inject('pod', async ({ app, hub, db, log, startup, boss }) => {
       where api_key = $1;
     `,
       [api_key]
-    )
+    );
 
-  inject('command.api_key_new', async () => {
-    const api_key = shortid.generate()
-    const api_secret = shortid.generate()
-    await upsert({ api_key, api_secret })
+  inject("command.api_key_new", async () => {
+    const api_key = shortid.generate();
+    const api_secret = shortid.generate();
+    await upsert({ api_key, api_secret });
     if (process.env.BOSS_CONTROL_HOST)
       await log(
-        `${process.env.BOSS_CONTROL_HOST}/connect?server_address=${encodeURIComponent(
+        `${
+          process.env.BOSS_CONTROL_HOST
+        }/connect?server_address=${encodeURIComponent(
           process.env.BOSS_API_HOST
-        )}&api_key=${encodeURIComponent(api_key)}&api_secret=${encodeURIComponent(api_secret)}`
-      )
-    else await log(`Added api_key: ${api_key}, api_secret: ${api_secret}`)
-  })
+        )}&api_key=${encodeURIComponent(
+          api_key
+        )}&api_secret=${encodeURIComponent(api_secret)}`
+      );
+    else await log(`Added api_key: ${api_key}, api_secret: ${api_secret}`);
+  });
 
-  inject('command.api_key_delete', async api_key => {
-    await remove({ api_key })
-    await log(`Removed ${api_key}`)
-  })
+  inject("command.api_key_delete", async (api_key) => {
+    await remove({ api_key });
+    await log(`Removed ${api_key}`);
+  });
 
-  const load_jobs = async ({ queue, statuses, currentpage, itemsperpage = 25, search_term = null }) => {
-    const archived_statuses = statuses.filter(s =>
-      ['archived_completed', 'archived_cancelled', 'archived_expired', 'archived_failed'].includes(s)
-    )
-    statuses = statuses.filter(s => boss_states[s])
+  const load_jobs = async ({
+    queue,
+    statuses,
+    currentpage,
+    itemsperpage = 25,
+    search_term = null,
+  }) => {
+    const archived_statuses = statuses.filter((s) =>
+      [
+        "archived_completed",
+        "archived_cancelled",
+        "archived_expired",
+        "archived_failed",
+      ].includes(s)
+    );
+    statuses = statuses.filter((s) => boss_states[s]);
 
     if (statuses.length == 0 && archived_statuses.length == 0)
       return {
@@ -78,8 +93,8 @@ inject('pod', async ({ app, hub, db, log, startup, boss }) => {
         currentpage: 1,
         itemsperpage,
         totalitems: 0,
-        jobs: []
-      }
+        jobs: [],
+      };
     const res =
       search_term && search_term.length > 2
         ? await db.query(
@@ -98,7 +113,13 @@ inject('pod', async ({ app, hub, db, log, startup, boss }) => {
         order by greatest(startedon, createdon, completedon, startafter) desc
         offset $4
         limit $5;`,
-            [queue, statuses, `%${search_term}%`, (currentpage - 1) * itemsperpage, itemsperpage]
+            [
+              queue,
+              statuses,
+              `%${search_term}%`,
+              (currentpage - 1) * itemsperpage,
+              itemsperpage,
+            ]
           )
         : await db.query(
             `
@@ -116,7 +137,7 @@ inject('pod', async ({ app, hub, db, log, startup, boss }) => {
         offset $3
         limit $4;`,
             [queue, statuses, (currentpage - 1) * itemsperpage, itemsperpage]
-          )
+          );
     const res_archived =
       search_term && search_term.length > 2
         ? await db.query(
@@ -132,10 +153,10 @@ inject('pod', async ({ app, hub, db, log, startup, boss }) => {
           limit $5;`,
             [
               queue,
-              archived_statuses.map(s => s.replace('archived_', '')),
+              archived_statuses.map((s) => s.replace("archived_", "")),
               `%${search_term}%`,
               (currentpage - 1) * itemsperpage,
-              itemsperpage
+              itemsperpage,
             ]
           )
         : await db.query(
@@ -150,93 +171,102 @@ inject('pod', async ({ app, hub, db, log, startup, boss }) => {
           limit $4;`,
             [
               queue,
-              archived_statuses.map(s => s.replace('archived_', '')),
+              archived_statuses.map((s) => s.replace("archived_", "")),
               (currentpage - 1) * itemsperpage,
-              itemsperpage
+              itemsperpage,
             ]
-          )
-    const totalitems = parseInt(res.rows?.[0]?.full_count ?? 0) + parseInt(res_archived.rows?.[0]?.full_count ?? 0)
-    for (const row of res.rows) delete row.full_count
-    for (const row of res_archived.rows) delete row.full_count
+          );
+    const totalitems =
+      parseInt(res.rows?.[0]?.full_count ?? 0) +
+      parseInt(res_archived.rows?.[0]?.full_count ?? 0);
+    for (const row of res.rows) delete row.full_count;
+    for (const row of res_archived.rows) delete row.full_count;
     return {
       queue,
       statuses,
       currentpage,
       itemsperpage,
       totalitems,
-      jobs: [...res.rows, ...res_archived.rows]
-    }
-  }
+      jobs: [...res.rows, ...res_archived.rows],
+    };
+  };
 
-  await startup.released()
+  await startup.released();
 
-  const sockets = new Set()
-  let last = null
+  const sockets = new Set();
+  let last = null;
 
-  hub.on('socket connected', socket => {
-    socket.addEventListener('message', async e => {
-      const { e: event, p: payload } = JSON.parse(e.data)
+  hub.on("socket connected", (socket) => {
+    console.log("connected socket");
+    socket.addEventListener("message", async (e) => {
+      const { e: event, p: payload } = JSON.parse(e.data);
+      console.log("event :>> ", event);
+      console.log("payload :>> ", payload);
       if (sockets.has(socket)) {
-        if (event == 'load jobs') {
-          socket.sendMessage('loaded jobs', await load_jobs(payload))
+        if (event == "load jobs") {
+          socket.sendMessage("loaded jobs", await load_jobs(payload));
         }
-      } else if (event == 'login') {
-        const { apiKey, apiSecret } = payload
-        if (!(await verify({ api_key: apiKey, api_secret: apiSecret }))) return
-        socket.sendMessage('queue state update', last)
-        sockets.add(socket)
+      } else if (event == "login") {
+        const { apiKey, apiSecret } = payload;
+        if (!(await verify({ api_key: apiKey, api_secret: apiSecret }))) return;
+        socket.sendMessage("queue state update", last);
+        sockets.add(socket);
       }
-    })
-  })
-  hub.on('socket disconnected', socket => {
-    sockets.delete(socket)
-  })
+    });
+  });
+  hub.on("socket disconnected", (socket) => {
+    sockets.delete(socket);
+  });
 
   const handle = setInterval(async () => {
     const { rows: summary } = await db.query(`
       select name, state, count(*) size
       from ${schema}.job
-      group by rollup(name), rollup(state)`)
+      group by rollup(name), rollup(state)`);
     const { rows: archive_summary } = await db.query(`
       select name, state, count(*) size
       from ${schema}.archive
-      group by rollup(name), rollup(state)`)
+      group by rollup(name), rollup(state)`);
 
     const states_map = Object.entries(
       summary.reduce((map, i) => {
-        const name = i.name ?? `${boss_prefix}total_all`
-        const state = i.state ?? 'total'
-        if (!map[name]) map[name] = Object.fromEntries(Object.keys(boss_states).map(q => [q, 0]))
-        map[name][state] = parseInt(i.size)
-        return map
+        const name = i.name ?? `${boss_prefix}total_all`;
+        const state = i.state ?? "total";
+        if (!map[name])
+          map[name] = Object.fromEntries(
+            Object.keys(boss_states).map((q) => [q, 0])
+          );
+        map[name][state] = parseInt(i.size);
+        return map;
       }, {})
-    )
+    );
     archive_summary
-      .filter(ln => ln.state)
+      .filter((ln) => ln.state)
       .forEach(({ name, state, size }) => {
-        const entry = states_map.find(e => e[0] == name)
-        if (entry) entry[1][`archived_${state}`] = size
-      })
+        const entry = states_map.find((e) => e[0] == name);
+        if (entry) entry[1][`archived_${state}`] = size;
+      });
     last = {
       special: states_map
         .filter(([name]) => name.startsWith(boss_prefix))
         .map(([name, states]) => [name.slice(boss_prefix.length), states]),
-      queues: states_map.filter(([name]) => !name.startsWith(boss_prefix))
-    }
+      queues: states_map.filter(([name]) => !name.startsWith(boss_prefix)),
+    };
     last.special.push([
-      'total',
+      "total",
       last.queues.reduce((obj, [_, q]) => {
-        for (const [key, value] of Object.entries(q)) obj[key] = (obj[key] ?? 0) + value
-        return obj
-      }, {})
-    ])
+        for (const [key, value] of Object.entries(q))
+          obj[key] = (obj[key] ?? 0) + value;
+        return obj;
+      }, {}),
+    ]);
     for (const socket of sockets.values()) {
       // console.log('Sending:', last.queues)
-      socket.sendMessage('queue state update', last)
+      socket.sendMessage("queue state update", last);
     }
-  }, 500)
+  }, 500);
 
-  hub.on('shutdown', () => {
-    clearTimeout(handle)
-  })
-})
+  hub.on("shutdown", () => {
+    clearTimeout(handle);
+  });
+});
