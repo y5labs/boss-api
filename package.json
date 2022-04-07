@@ -9,7 +9,8 @@
   },
   "scripts": {
     "dev": "cross-env NODE_ENV=development nodemon --es-module-specifier-resolution=node --experimental-json-modules --trace-deprecation -e js --require dotenv/config ./",
-    "start": "cross-env NODE_ENV=production node --es-module-specifier-resolution=node --experimental-json-modules --trace-deprecation --require dotenv/config ./"
+    "start": "cross-env NODE_ENV=production node --es-module-specifier-resolution=node --experimental-json-modules --trace-deprecation --require dotenv/config ./",
+    "migrate": "node --es-module-specifier-resolution=node ./maintenance/migrate"
   },
   "repository": {
     "type": "git",
