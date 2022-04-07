@@ -13,8 +13,15 @@ const pool2 = new Pool({
 })
 console.log(bossConnectionString1)
 console.log(bossConnectionString2)
-const result = await pool1.query(`select * from job where name = '${jobName}'`)
-console.log('result :>> ', result.rows)
+const { rows: toMigrate } = await pool1.query(`select * from job where name = '${jobName}'`)
+for (const row of toMigrate) {
+  console.log(Object.values(row))
+  await pool2.query(
+    'insert into job values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)',
+    Object.values(row)
+  )
+}
+console.log('result :>> ', toMigrate)
 
 // Execution:
 // e.g.
