@@ -57,3 +57,6 @@ telnet localhost
 help
 api_key_new
 ```
+
+## Helper Scripts
+This module also exposes a migration script 
