@@ -38,13 +38,5 @@ for (const { index, values: chunked_jobs } of chunk(jobs, 100)) {
     `${pg_insert(chunked_jobs, Object.keys(chunked_jobs[0]), 'job')}
           on conflict (id) do nothing`
   )
-  console.log('Batch ', index / 100, ' inserted :>> ')
+  console.log('Batch ', Math.ceil(index / 100), ' inserted :>> ')
 }
-
-// Execution:
-// npm run migrate SQL_CONN_STR_1 SQL_CONN_STR_2 JOB_NAME
-
-// e.g.
-// npm run migrate postgresql://whites_postgres:pPEaR94Ygjki8FXheKcm4AW0jfUo5tk1@localhost:5433/boss \
-// postgresql://whites_postgres_boss:HwyJWIPCFbG96iyDzhhMC99eWkkadJ5Z@localhost:5434/boss \
-// whites-platform-api.queue_new_orders

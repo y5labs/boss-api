@@ -59,4 +59,18 @@ api_key_new
 ```
 
 ## Helper Scripts
-This module also exposes a migration script 
+This module also exposes a migration script that can be used to migrate jobs from one Boss job database table to another. Just pass in a 2 complete postgresql connection strings and a job name (jobs ending with * should have a % instead of the * as they will be matched as SQL wildcards).
+
+```npm run migrate SQL_CONN_STR_1 SQL_CONN_STR_2 JOB_NAME```
+
+E.g.
+
+```npm run migrate postgresql://whites_postgres:whites_postgres_user_password@localhost:5433/boss \
+postgresql://whites_postgres_boss:whites_postgres_boss_user_password@localhost:5434/boss \
+whites-platform-api.queue_new_orders```
+
+Or
+
+```npm run migrate postgresql://whites_postgres:whites_postgres_user_password@localhost:5433/boss \
+postgresql://whites_postgres_boss:whites_postgres_boss_user_password@localhost:5434/boss \
+whites-seeker.cache-store-%```
