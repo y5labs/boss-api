@@ -199,7 +199,8 @@ inject('pod', async ({ app, hub, db, log, startup, boss }) => {
     const { rows: summary } = await db.query(`
       select name, state, count(*) size
       from ${schema}.job
-      group by rollup(name, state)`)
+      group by rollup(name, state)
+      order by count(*) desc`)
     const { rows: archive_summary } = await db.query(`
       select name, state, count(*) size
       from ${schema}.archive
