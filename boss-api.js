@@ -203,10 +203,12 @@ inject('pod', async ({ app, hub, db, log, startup, boss }) => {
     const { rows: archive_summary } = await db.query(`
       select name, state, count(*) size
       from ${schema}.archive
-      group by rollup(name, state)`)
+      group by rollup(name, state)
+      order by count(*) desc
+      limit 1000`)
 
     const states_map = Object.entries(
-      summary.reduce((map, i) => {
+      summary.slice(100).reduce((map, i) => {
         const name = i.name ?? `${boss_prefix}total_all`
         const state = i.state ?? 'total'
         if (!map[name]) map[name] = Object.fromEntries(Object.keys(boss_states).map(q => [q, 0]))
